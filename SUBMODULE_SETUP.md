@@ -25,13 +25,34 @@ The following repositories need to be created on GitHub:
 
 ## Pushing Submodules
 
-After creating all the repositories, run the provided script to push all submodules:
+After creating all the repositories, you can push each submodule to its corresponding GitHub repository using the following commands:
 
 ```bash
-./push_submodules.sh
-```
+# For passwdpro-server
+cd passwdpro-server
+git push --set-upstream origin main
+cd ..
 
-This script will push each submodule to its corresponding GitHub repository.
+# For passwdpro-mobile
+cd passwdpro-mobile
+git push --set-upstream origin main
+cd ..
+
+# For passwdpro-web
+cd passwdpro-web
+git push --set-upstream origin main
+cd ..
+
+# For passwdpro-desktop
+cd passwdpro-desktop
+git push --set-upstream origin main
+cd ..
+
+# For passwdpro-shared
+cd passwdpro-shared
+git push --set-upstream origin main
+cd ..
+```
 
 ## Verifying Setup
 
