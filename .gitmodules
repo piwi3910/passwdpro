@@ -1,0 +1,15 @@
+[submodule "passwdpro-server"]
+	path = passwdpro-server
+	url = ./passwdpro-server
+[submodule "passwdpro-mobile"]
+	path = passwdpro-mobile
+	url = ./passwdpro-mobile
+[submodule "passwdpro-web"]
+	path = passwdpro-web
+	url = ./passwdpro-web
+[submodule "passwdpro-desktop"]
+	path = passwdpro-desktop
+	url = ./passwdpro-desktop
+[submodule "passwdpro-shared"]
+	path = passwdpro-shared
+	url = ./passwdpro-shared
