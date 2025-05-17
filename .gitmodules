@@ -1,15 +1,15 @@
 [submodule "passwdpro-server"]
 	path = passwdpro-server
-	url = ./passwdpro-server
+	url = https://github.com/piwi3910/passwdpro-server.git
 [submodule "passwdpro-mobile"]
 	path = passwdpro-mobile
-	url = ./passwdpro-mobile
+	url = https://github.com/piwi3910/passwdpro-mobile.git
 [submodule "passwdpro-web"]
 	path = passwdpro-web
-	url = ./passwdpro-web
+	url = https://github.com/piwi3910/passwdpro-web.git
 [submodule "passwdpro-desktop"]
 	path = passwdpro-desktop
-	url = ./passwdpro-desktop
+	url = https://github.com/piwi3910/passwdpro-desktop.git
 [submodule "passwdpro-shared"]
 	path = passwdpro-shared
-	url = ./passwdpro-shared
+	url = https://github.com/piwi3910/passwdpro-shared.git
