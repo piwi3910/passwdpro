@@ -1,0 +1,243 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: passwdpro_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'server/package-lock.json'
+      
+      - name: Install dependencies
+        working-directory: ./server
+        run: npm ci
+      
+      - name: Generate Prisma client
+        working-directory: ./server
+        run: npx prisma generate
+      
+      - name: Run linting
+        working-directory: ./server
+        run: npm run lint
+      
+      - name: Run backend tests
+        working-directory: ./server
+        run: npm test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/passwdpro_test
+          JWT_SECRET: test_jwt_secret
+          NODE_ENV: test
+  
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.10.x'
+          channel: 'stable'
+          cache: true
+      
+      - name: Install dependencies
+        working-directory: ./app
+        run: flutter pub get
+      
+      - name: Verify formatting
+        working-directory: ./app
+        run: dart format --output=none --set-exit-if-changed .
+      
+      - name: Analyze project source
+        working-directory: ./app
+        run: flutter analyze
+      
+      - name: Run unit tests
+        working-directory: ./app
+        run: flutter test
+  
+  integration-tests:
+    name: Integration Tests
+    runs-on: macos-latest # Using macOS for iOS simulator
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.10.x'
+          channel: 'stable'
+          cache: true
+      
+      - name: Install dependencies
+        working-directory: ./app
+        run: flutter pub get
+      
+      - name: Run integration tests
+        working-directory: ./app
+        run: flutter test integration_test
+  
+  build-and-push-backend:
+    name: Build and Push Backend
+    runs-on: ubuntu-latest
+    needs: [backend-tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+      
+      - name: Build and push backend
+        uses: docker/build-push-action@v4
+        with:
+          context: ./server
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/passwdpro-backend:latest,${{ secrets.DOCKER_HUB_USERNAME }}/passwdpro-backend:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/passwdpro-backend:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/passwdpro-backend:buildcache,mode=max
+  
+  build-and-push-frontend:
+    name: Build and Push Frontend
+    runs-on: ubuntu-latest
+    needs: [frontend-tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+      
+      - name: Build and push frontend
+        uses: docker/build-push-action@v4
+        with:
+          context: ./app
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/passwdpro-frontend:latest,${{ secrets.DOCKER_HUB_USERNAME }}/passwdpro-frontend:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/passwdpro-frontend:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/passwdpro-frontend:buildcache,mode=max
+  
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript, typescript
+      
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+      
+      - name: Run npm audit
+        working-directory: ./server
+        run: npm audit --production
+      
+      - name: Run Flutter dependency audit
+        working-directory: ./app
+        run: flutter pub outdated
+  
+  deploy-to-kubernetes:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: [build-and-push-backend, build-and-push-frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+      
+      - name: Set Kubernetes context
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+      
+      - name: Update image tags
+        run: |
+          # Update backend deployment image
+          sed -i "s|\${DOCKER_REGISTRY}/passwdpro-backend:\${IMAGE_TAG}|${{ secrets.DOCKER_HUB_USERNAME }}/passwdpro-backend:${{ github.sha }}|g" kubernetes/backend/deployment.yaml
+          
+          # Update frontend deployment image
+          sed -i "s|\${DOCKER_REGISTRY}/passwdpro-frontend:\${IMAGE_TAG}|${{ secrets.DOCKER_HUB_USERNAME }}/passwdpro-frontend:${{ github.sha }}|g" kubernetes/frontend/deployment.yaml
+      
+      - name: Deploy to Kubernetes
+        run: |
+          # Create namespace if it doesn't exist
+          kubectl apply -f kubernetes/namespace.yaml
+          
+          # Apply database resources
+          kubectl apply -f kubernetes/database/
+          
+          # Apply backend resources
+          kubectl apply -f kubernetes/backend/
+          
+          # Apply frontend resources
+          kubectl apply -f kubernetes/frontend/
+          
+          # Apply ingress resources
+          kubectl apply -f kubernetes/ingress/
+      
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/backend -n passwdpro
+          kubectl rollout status deployment/frontend -n passwdpro
