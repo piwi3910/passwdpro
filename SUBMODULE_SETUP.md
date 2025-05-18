@@ -1,82 +1,73 @@
-# PasswdPro Submodule Setup
+# Submodule Setup Guide
 
-This document provides instructions for setting up the GitHub repositories for the PasswdPro project's submodules.
+This document describes how to work with the Git submodules in this project.
 
-## Required Repositories
+## Initial Setup
 
-The following repositories need to be created on GitHub:
-
-1. https://github.com/piwi3910/passwdpro-server
-2. https://github.com/piwi3910/passwdpro-mobile
-3. https://github.com/piwi3910/passwdpro-web
-4. https://github.com/piwi3910/passwdpro-desktop
-5. https://github.com/piwi3910/passwdpro-shared
-
-## Steps to Create Repositories
-
-1. Log in to your GitHub account
-2. For each repository listed above:
-   - Click on the "+" icon in the top right corner and select "New repository"
-   - Enter the repository name (e.g., "passwdpro-server")
-   - Add a description (optional)
-   - Choose "Private" or "Public" visibility as appropriate
-   - Do NOT initialize the repository with a README, .gitignore, or license
-   - Click "Create repository"
-
-## Pushing Submodules
-
-After creating all the repositories, you can push each submodule to its corresponding GitHub repository using the following commands:
+To initialize the submodules after cloning the main repository:
 
 ```bash
-# For passwdpro-server
-cd passwdpro-server
-git push --set-upstream origin main
-cd ..
-
-# For passwdpro-mobile
-cd passwdpro-mobile
-git push --set-upstream origin main
-cd ..
-
-# For passwdpro-web
-cd passwdpro-web
-git push --set-upstream origin main
-cd ..
-
-# For passwdpro-desktop
-cd passwdpro-desktop
-git push --set-upstream origin main
-cd ..
-
-# For passwdpro-shared
-cd passwdpro-shared
-git push --set-upstream origin main
-cd ..
+git submodule init
+git submodule update
 ```
 
-## Verifying Setup
+## Create/Update Submodules
 
-After pushing all submodules, you can verify the setup by:
+To create a new submodule:
 
-1. Checking the status of all submodules:
-   ```bash
-   git submodule status
-   ```
+```bash
+git submodule add -b main <repository-url> <path>
+```
 
-2. Ensuring all submodules can be updated:
-   ```bash
-   git submodule update --remote
-   ```
+To update a submodule to the latest commit on main:
 
-3. Verifying that changes can be pushed to each submodule:
-   - Make a small change in each submodule
-   - Commit the change
-   - Push to the remote repository
+```bash
+cd <submodule-path>
+git checkout main
+git pull
+cd ..
+git add <submodule-path>
+git commit -m "Update <submodule-name> to latest main"
+```
+
+## Working with Submodules
+
+When making changes in a submodule:
+
+1. Navigate to the submodule directory
+2. Make your changes
+3. Commit and push the changes in the submodule
+4. Update the main repository to reference the new commit:
+
+```bash
+cd ..  # Return to main repository
+git add <submodule-path>
+git commit -m "Update <submodule-name> reference"
+git push
+```
+
+## Clone Repository with Submodules
+
+To clone the main repository along with all submodules:
+
+```bash
+git clone --recurse-submodules <repository-url>
+```
 
 ## Troubleshooting
 
-If you encounter issues:
+If submodules are showing as modified without any changes:
 
-1. Ensure you have the correct permissions for all repositories
-2. Verify that the remote URLs in the .gitmodules file are correct
-3. Check that you've properly initialized and updated all submodules
+```bash
+git submodule update --init --recursive
+```
+
+If you need to switch a submodule to the main branch:
+
+```bash
+cd <submodule-path>
+git checkout main
+cd ..
+git add <submodule-path>
+git commit -m "Switch <submodule-name> to main branch"
+```
